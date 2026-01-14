@@ -2,7 +2,9 @@
 body {
     font-family: 'Microsoft YaHei', '方正书宋', sans-serif;
     background-color: #f5f1e6; /* 更柔和的古纸色背景 */
-    background-image: url('../images/paper_texture.png');
+    background-image: url('../images/paper_texture.png'), url('../images/chinese_pattern.png');
+    background-repeat: repeat, repeat;
+    background-size: 500px, 800px;
     background-blend-mode: soft-light;
     color: #3a3a3a;
     background-attachment: fixed;
@@ -120,147 +122,98 @@ body {
     stroke-opacity: 1;
     stroke-width: 2px;
 }
-/* 3. 交互效果增强
+/* 添加操作提示功能
 
-### 节点与连线
-- 为节点添加精美的人物头像或剪影
-- 节点悬停时显示精致的人物卡片，包含简要信息
-- 连线使用更有质感的样式，如渐变色或虚线效果
+为了让用户直观地了解如何固定节点的操作方法，我建议添加以下几种提示方式：
 
-### 动画效果
-- 添加优雅的过渡动画，如节点选中时的放大效果
-- 图谱初始化时的展开动画
-- 筛选时的平滑过渡
+1. 在图表上方添加简洁的操作提示
+2. 首次使用时显示引导提示
+3. 鼠标悬停在节点上时显示操作提示
 
-## 4. CSS样式示例
-/* 全局样式 */
-body {
-    font-family: 'Microsoft YaHei', '方正书宋', sans-serif;
-    background-color: #f5f1e6; /* 更柔和的古纸色背景 */
-    background-image: url('../images/paper_texture.png');
-    background-blend-mode: soft-light;
-    color: #3a3a3a;
-    background-attachment: fixed;
-}
+下面是具体的实现方案：
 
-/* 自定义头部 */
-.custom-header {
-    position: relative;
-    padding: 2rem 0;
-    overflow: hidden;
-}
-
-.header-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: url('../images/chinese_pattern.png');
-    opacity: 0.15;
-    z-index: -1;
-}
-
-.title-font {
-    font-family: '汉仪旗黑', 'Microsoft YaHei', sans-serif;
-    color: #8C1C13; /* 宫廷红 */
-    text-shadow: 1px 1px 3px rgba(140,28,19,0.15);
-    letter-spacing: 3px;
-}
-
-.subtitle {
-    color: #666;
-    font-style: italic;
-}
-
-/* 卡片样式 */
-.card {
-    border-radius: 8px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(140, 28, 19, 0.05);
-    background-color: rgba(255, 252, 245, 0.85);
-    backdrop-filter: blur(5px);
-}
-
-.card-header {
-    background-color: rgba(140, 28, 19, 0.05);
-    border-bottom: 1px solid rgba(140, 28, 19, 0.1);
-    font-weight: 600;
-    color: #8C1C13;
-}
-
-/* 按钮样式 */
-.btn-primary {
-    background-color: #8C1C13;
-    border-color: #8C1C13;
-    box-shadow: 0 2px 4px rgba(140, 28, 19, 0.2);
-}
-
-.btn-primary:hover {
-    background-color: #7a1811;
-    border-color: #7a1811;
-}
-
-/* 自定义图例 */
-.custom-legend {
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-    padding: 15px;
-    border: 1px solid rgba(140, 28, 19, 0.1);
-}
-
-.legend-title {
-    color: #8C1C13;
-    font-weight: 600;
-    border-bottom: 1px solid rgba(140, 28, 19, 0.2);
-    padding-bottom: 8px;
-    margin-bottom: 10px;
-}
-
-.legend-item {
-    transition: all 0.3s ease;
-    padding: 6px 10px;
-}
-
-.legend-item:hover {
-    background-color: rgba(140, 28, 19, 0.05);
-    transform: translateY(-2px);
-}
-
-/* 节点和连线样式 */
-.node circle {
-    stroke: #fff;
-    stroke-width: 2px;
-    transition: all 0.3s ease;
-}
-
-.node:hover circle {
-    stroke-width: 3px;
-    filter: drop-shadow(0 0 3px rgba(0,0,0,0.3));
-}
-
-.node text {
-    font-family: '方正书宋', 'Microsoft YaHei', sans-serif;
-    transition: all 0.3s ease;
-}
-
-.link {
-    stroke-opacity: 0.6;
-    transition: all 0.3s ease;
-    stroke-width: 1px;
-}
-
-.link:hover {
-    stroke-opacity: 1;
-    stroke-width: 2px;
-}
+## 1. 添加操作提示样式
 /* 固定节点样式 */
 .fixed-node {
     stroke: #ff0000 !important;
     stroke-width: 3px !important;
     stroke-dasharray: 5, 2;
 }
+
+/* 操作提示样式 */
+.operation-tips {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: rgba(255, 252, 245, 0.95);
+    border: 1px solid rgba(140, 28, 19, 0.1);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #3a3a3a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+    max-width: 300px;
+    transition: all 0.3s ease;
+}
+
+.operation-tips .tip-icon {
+    color: #8C1C13;
+    margin-right: 5px;
+}
+
+.operation-tips .key-hint {
+    display: inline-block;
+    background-color: #f5f1e6;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 0 5px;
+    margin: 0 2px;
+    font-family: monospace;
+    font-weight: bold;
+}
+
+/* 引导提示样式 */
+.guide-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.guide-box {
+    background-color: rgba(255, 252, 245, 0.98);
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 400px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(140, 28, 19, 0.1);
+}
+
+.guide-title {
+    color: #8C1C13;
+    font-weight: bold;
+    margin-bottom: 15px;
+    font-size: 18px;
+    border-bottom: 1px solid rgba(140, 28, 19, 0.1);
+    padding-bottom: 8px;
+}
+
+.guide-content {
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.guide-footer {
+    text-align: right;
+}
+
 /* 图形容器样式 */
 #graph-container {
     width: 100%;

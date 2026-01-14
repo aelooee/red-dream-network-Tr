@@ -41,13 +41,21 @@ function init() {
     container = svg.append('g');
 
     // 添加缩放行为
-    const zoom = d3.zoom()
+    // 替换：使用全局 zoom，供 resetView 复用
+    zoom = d3.zoom()
         .scaleExtent([0.1, 4])
         .on('zoom', (event) => {
             container.attr('transform', event.transform);
         });
 
     svg.call(zoom);
+
+    // 设置多层背景纹理
+    document.body.style.backgroundImage = "url('images/paper_texture.png'), url('images/chinese_pattern.png')";
+    document.body.style.backgroundAttachment = 'fixed, fixed';
+    document.body.style.backgroundSize = 'cover, 600px';
+    document.body.style.backgroundRepeat = 'no-repeat, repeat';
+    document.body.style.backgroundPosition = 'center, top left';
 
     // 创建提示框
     tooltip = d3.select('body').append('div')
@@ -59,6 +67,11 @@ function init() {
 
     // 添加事件监听器
     addEventListeners();
+    
+    // 检查是否是首次访问
+    if (!localStorage.getItem('fixNodeTipShown')) {
+        showFixNodeGuide();
+    }
 }
 
 // 加载数据
@@ -110,12 +123,12 @@ function renderGraph(data) {
 
     // 创建力导向模拟
     simulation = d3.forceSimulation(data.nodes)
-        .force('link', d3.forceLink(data.links).id(d => d.id).distance(100)) // 减小连接距离
-        .force('charge', d3.forceManyBody().strength(-200)) // 减小节点间斥力
-        .force('center', d3.forceCenter(width / 2, height / 2).strength(0.01)) // 增加中心引力
-        .force('collide', d3.forceCollide().radius(20)) // 减小碰撞半径
-        .force('x', d3.forceX(width / 2).strength(0.1)) // 添加X方向引力
-        .force('y', d3.forceY(height / 2).strength(0.1)); // 添加Y方向引力
+        .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
+        .force('charge', d3.forceManyBody().strength(-200))
+        .force('center', d3.forceCenter(width / 2, height / 2).strength(0.01))
+        .force('collide', d3.forceCollide().radius(20))
+        .force('x', d3.forceX(width / 2).strength(0.1))
+        .force('y', d3.forceY(height / 2).strength(0.1));
 
     // 绘制连线
     const link = container.append('g')
@@ -123,8 +136,8 @@ function renderGraph(data) {
         .selectAll('line')
         .data(data.links)
         .enter().append('line')
-        .attr('class', d => `link ${d.type}-link`)
-        .attr('stroke-width', d => Math.sqrt(d.value))
+        .attr('class', 'link')
+        .attr('stroke-width', d => Math.sqrt(d.value || 1))
         .attr('stroke', d => relationColors[d.type] || '#999')
         .on('mouseover', handleLinkMouseOver)
         .on('mouseout', handleLinkMouseOut);
@@ -146,62 +159,45 @@ function renderGraph(data) {
 
     // 添加节点圆圈
     node.append('circle')
-        .attr('r', d => {
-            // 主要人物使用较大半径，次要人物使用较小半径
-            return d.group === '次要角色' ? 7 : 10;
-        })
-        .attr('fill', d => {
-            // 如果节点分组在我们定义的颜色映射中，则使用对应颜色
-            if (groupColors[d.group]) {
-                return groupColors[d.group];
-            }
-            // 对于原来的'其他'分组或未定义分组，使用'次要角色'的颜色
-            return groupColors['次要角色'];
-        })
+        .attr('r', d => d.group === '次要角色' ? 7 : 10)
+        .attr('fill', d => groupColors[d.group] || groupColors['次要角色'])
         .attr('stroke', '#fff')
         .attr('stroke-width', d => d.group === '次要角色' ? 1 : 2);
 
     // 添加节点文本
     node.append('text')
-        .attr('dy', d => d.group === '次要角色' ? 15 : 20) // 次要人物文本更靠近节点
+        .attr('dy', d => d.group === '次要角色' ? 15 : 20)
         .attr('text-anchor', 'middle')
         .text(d => d.id)
-        .attr('font-size', d => d.group === '次要角色' ? '8px' : '10px'); // 次要人物文本更小
+        .attr('font-size', d => d.group === '次要角色' ? '8px' : '10px');
 
-    // 更新模拟
+    // 更新模拟（仅绑定一次tick）
     simulation.on('tick', () => {
-        // 边界检测，防止节点移出可视区域
-        data.nodes.forEach(d => {
-            // 为次要人物节点添加额外的中心引力
+        const nodes = simulation.nodes();
+        nodes.forEach(d => {
             if (d.group === '次要角色') {
-                // 计算到中心的距离
                 const dx = d.x - width / 2;
                 const dy = d.y - height / 2;
                 const distance = Math.sqrt(dx * dx + dy * dy);
-                
-                // 如果距离中心太远，施加额外引力
                 if (distance > Math.min(width, height) / 3) {
                     d.x -= dx * 0.03;
                     d.y -= dy * 0.03;
                 }
             }
-            
-            // 边界约束，确保节点在容器内
-            const r = 15; // 节点半径加一些边距
+            const r = 15;
             d.x = Math.max(r, Math.min(width - r, d.x));
             d.y = Math.max(r, Math.min(height - r, d.y));
         });
-        
-        link
+
+        container.select('g.links').selectAll('line')
             .attr('x1', d => d.source.x)
             .attr('y1', d => d.source.y)
             .attr('x2', d => d.target.x)
             .attr('y2', d => d.target.y);
 
-        node
+        container.select('g.nodes').selectAll('.node')
             .attr('transform', d => `translate(${d.x},${d.y})`);
     });
-
 }
 
 // 节点拖拽函数
@@ -227,13 +223,15 @@ function dragEnded(event, d) {
             .select('circle')
             .classed('fixed-node', true)
             .attr('stroke', '#ff0000')
-            .attr('stroke-width', 3);
+            .attr('stroke-width', 3)
+            // 新增：虚线边框以匹配指南文案
+            .attr('stroke-dasharray', '4,2');
             
-        // 显示提示信息
+        // 显示提示信息（修正文案：不按Shift拖动即可解除固定）
         tooltip.transition()
             .duration(200)
             .style('opacity', .9);
-        tooltip.html(`<strong>${d.id}</strong> 已固定位置<br/>拖动时按Shift+拖动可解除固定`)
+        tooltip.html(`<strong>${d.id}</strong> 已固定位置<br/>再次拖动（不按Shift键）可解除固定`)
             .style('left', (event.sourceEvent.pageX + 10) + 'px')
             .style('top', (event.sourceEvent.pageY - 28) + 'px');
         setTimeout(() => {
@@ -250,7 +248,9 @@ function dragEnded(event, d) {
                 .select('circle')
                 .classed('fixed-node', false)
                 .attr('stroke', '#fff')
-                .attr('stroke-width', d => d.group === '次要角色' ? 1 : 2);
+                .attr('stroke-width', d => d.group === '次要角色' ? 1 : 2)
+                // 新增：移除虚线边框
+                .attr('stroke-dasharray', null);
         } else {
             // 正常情况下，拖动结束后解除固定
             d.fx = null;
@@ -378,12 +378,29 @@ function highlightConnections(node) {
 
 // 节点悬停处理
 function handleNodeMouseOver(event, d) {
-    if (selectedNode) return; // 如果已有选中节点，不显示提示
-
+    // 显示提示框
     tooltip.transition()
         .duration(200)
         .style('opacity', .9);
-    tooltip.html(`<strong>${d.id}</strong><br/>${d.group}<br/>${d.family || ''}`)
+    
+    // 判断节点是否已固定（修正：同时排除 undefined 和 null）
+    const isFixed = d.fx != null && d.fy != null;
+    
+    // 准备提示内容
+    let tooltipContent = `<strong>${d.id}</strong>`;
+    if (d.description) {
+        tooltipContent += `<br/>${d.description}`;
+    }
+    
+    // 添加操作提示
+    if (isFixed) {
+        tooltipContent += `<br/><span style="color:#8C1C13;font-style:italic;">✓ 已固定位置</span><br/>
+                          <small>拖动可解除固定</small>`;
+    } else {
+        tooltipContent += `<br/><small>拖动时按Shift键可固定位置</small>`;
+    }
+    
+    tooltip.html(tooltipContent)
         .style('left', (event.pageX + 10) + 'px')
         .style('top', (event.pageY - 28) + 'px');
 }
@@ -411,10 +428,8 @@ function handleLinkMouseOut() {
 }
 
 // 创建分组图例
-// 在createGroupLegend函数中添加关系类型图例的生成代码
 function createGroupLegend() {
     const legendContainer = document.getElementById('group-legend');
-    
     // 清空容器
     legendContainer.innerHTML = '';
     
@@ -452,8 +467,12 @@ function createGroupLegend() {
     
     // 添加关系类型图例
     const relationLegend = document.getElementById('relation-legend');
+    // 修复：容器不存在时直接返回，避免报错
+    if (!relationLegend) {
+        return;
+    }
     relationLegend.innerHTML = ''; // 清空容器
-    
+
     // 为每种关系类型创建图例项
     Object.entries(relationColors).forEach(([relationType, color]) => {
         const legendItem = document.createElement('div');
@@ -480,25 +499,23 @@ function addEventListeners() {
         selectedNode = null;
         resetHighlight();
     });
-    
     // 重置高亮按钮
     document.getElementById('reset-highlight').addEventListener('click', () => {
         resetHighlight();
-        // 保持信息面板打开，但不再高亮关联节点
     });
-
     // 重置视图
     document.getElementById('reset-view').addEventListener('click', resetView);
-
     // 搜索功能
     document.getElementById('search').addEventListener('input', handleSearch);
 
-    // 关系类型筛选
-    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+    // 为关系类型复选框添加统一类名，便于筛选管理
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.classList.add('relation-filter'));
+
+    // 关系类型筛选（仅监听relation-filter）
+    document.querySelectorAll('.relation-filter').forEach(checkbox => {
         checkbox.addEventListener('change', function(event) {
-            // 如果用户选中了一个复选框，取消选中其他复选框
             if (event.target.checked) {
-                document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                document.querySelectorAll('.relation-filter').forEach(cb => {
                     if (cb !== event.target) {
                         cb.checked = false;
                     }
@@ -507,8 +524,6 @@ function addEventListeners() {
             applyFilters();
         });
     });
-
-    // 家族筛选功能已移除
 
     // 点击空白处重置
     svg.on('click', () => {
@@ -521,6 +536,7 @@ function addEventListeners() {
 
     // 窗口大小变化时重新调整
     window.addEventListener('resize', debounce(() => {
+        if (!simulation) return;
         width = document.getElementById('graph-container').clientWidth;
         height = document.getElementById('graph-container').clientHeight;
         svg.attr('width', width).attr('height', height);
@@ -548,9 +564,9 @@ function resetHighlight() {
 
 // 重置视图
 function resetView() {
-    // 重置缩放和平移
+    // 重置缩放和平移（修复：复用全局 zoom 行为）
     svg.transition().duration(750).call(
-        d3.zoom().transform,
+        zoom.transform,
         d3.zoomIdentity
     );
 
@@ -675,11 +691,12 @@ function updateGraph(filteredData) {
         .data(filteredData.links)
         .enter().append('line')
         .attr('class', d => `link ${d.type}-link`)
-        .attr('stroke-width', d => Math.sqrt(d.value))
+        // 修复：给 value 提供默认值，避免 NaN
+        .attr('stroke-width', d => Math.sqrt(d.value || 1))
         .attr('stroke', d => relationColors[d.type] || '#999')
         .on('mouseover', handleLinkMouseOver)
         .on('mouseout', handleLinkMouseOut);
-    
+
     // 创建节点组
     const node = container.append('g')
         .attr('class', 'nodes')
@@ -764,3 +781,36 @@ function debounce(func, wait) {
 
 // 页面加载完成后初始化
 document.addEventListener('DOMContentLoaded', init);
+
+// 添加引导提示函数
+function showFixNodeGuide() {
+    // 创建引导提示元素
+    const guideOverlay = document.createElement('div');
+    guideOverlay.className = 'guide-overlay';
+    
+    guideOverlay.innerHTML = `
+        <div class="guide-box">
+            <div class="guide-title">节点固定功能使用指南</div>
+            <div class="guide-content">
+                <p>您可以通过以下方式固定节点位置：</p>
+                <ol>
+                    <li>拖动节点到您想要的位置</li>
+                    <li>在拖动过程中按住 <span class="key-hint">Shift</span> 键</li>
+                    <li>释放鼠标，节点将保持在当前位置</li>
+                </ol>
+                <p>固定的节点会显示红色虚线边框。再次拖动固定的节点（不按Shift键）可解除固定。</p>
+            </div>
+            <div class="guide-footer">
+                <button class="btn btn-primary" id="guide-close">我知道了</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(guideOverlay);
+    
+    // 添加关闭按钮事件
+    document.getElementById('guide-close').addEventListener('click', function() {
+        document.body.removeChild(guideOverlay);
+        localStorage.setItem('fixNodeTipShown', 'true');
+    });
+}
